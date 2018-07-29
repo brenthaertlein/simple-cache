@@ -32,15 +32,6 @@ public class CacheTtlTest extends AbstractTestRunner {
     return movie;
   }
 
-  static void sleep(long time) {
-    try {
-      log.debug("Test sleeping for {}ms", time);
-      Thread.sleep(time);
-    } catch (InterruptedException e) {
-    }
-    log.debug("Test done sleeping");
-  }
-
   @Test
   public void testPut() {
     log.debug("testPut()");
