@@ -1,6 +1,7 @@
 package com.nodemules.cache.core;
 
 import java.io.Serializable;
+import java.time.ZonedDateTime;
 
 /**
  * @author brent
@@ -14,6 +15,8 @@ public interface ICacheable<K extends Serializable, V> {
 
   V getValue();
 
-  void access();
+  ZonedDateTime getCreatedTime();
+
+  ZonedDateTime getExpireTime();
 
 }

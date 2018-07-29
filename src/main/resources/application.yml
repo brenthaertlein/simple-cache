@@ -1,2 +1,8 @@
+spring:
+  output:
+    ansi:
+      enabled: ALWAYS
 logging:
-  level: DEBUG
+  level:
+    root: INFO
+    com.nodemules.cache: DEBUG

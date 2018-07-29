@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoField;
 import java.util.Date;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -24,13 +26,16 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
+  @Getter
   private K id;
 
   private boolean refreshTtl;
 
+  private Long created;
   private Long expires;
   private Long accessed;
 
+  @Getter(AccessLevel.PACKAGE)
   private Long ttl;
 
   @Getter(AccessLevel.PRIVATE)
@@ -48,25 +53,50 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
 
   public CachedRecord(K id, V value, Long ttl, boolean refreshTtlOnAccess) {
     this.id = id;
+    this.created = ZonedDateTime.now().toInstant().toEpochMilli();
     try {
       data = new ObjectMapper().writeValueAsString(value);
     } catch (JsonProcessingException e) {
     }
     if (ttl != null) {
       this.ttl = ttl;
-      this.expires = ZonedDateTime.now().plusNanos(ttl * 1000).toInstant().toEpochMilli();
+      this.expires = created + ttl;
       this.refreshTtl = refreshTtlOnAccess;
+      log.trace("{} created -> {}, expires -> {}", id, getCreatedTime(), getExpireTime());
     }
   }
 
-  public void access() {
-    if (refreshTtl && expires != null) {
-      log.debug("Refreshing access for {}ms -> {}", ttl, id);
-      this.accessed = ZonedDateTime.now().toInstant().toEpochMilli();
-      expires = accessed + ttl;
+  @Override
+  public ZonedDateTime getCreatedTime() {
+    log.trace("{} created -> {}", id, expires);
+    if (expires == null) {
+      return null;
     }
+    return ZonedDateTime.from(Instant.ofEpochMilli(created).atZone(ZoneId.systemDefault()));
   }
 
+  @Override
+  public ZonedDateTime getExpireTime() {
+    log.trace("{} expires -> {}", id, expires);
+    if (expires == null) {
+      return null;
+    }
+    return ZonedDateTime.from(Instant.ofEpochMilli(expires).atZone(ZoneId.systemDefault()));
+  }
+
+  void setExpireTime(long ttl) {
+    this.ttl = ttl;
+    log.trace("Setting ttl -> {}", ttl);
+    this.expires = calculateEpochTimeFromTtl(ZonedDateTime.now(), ttl);
+    log.trace("Setting expires -> {}", expires);
+  }
+
+  void setExpireTime(long ttl, boolean refreshTtlOnAccess) {
+    setExpireTime(ttl);
+    this.refreshTtl = refreshTtlOnAccess;
+  }
+
+  @Override
   public boolean isExpired() {
     if (expires != null) {
       return Date.from(Instant.now()).after(Date.from(Instant.ofEpochMilli(expires)));
@@ -74,8 +104,12 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
     return false;
   }
 
-  public K getId() {
-    return id;
+  void access() {
+    if (refreshTtl && expires != null) {
+      log.trace("Refreshing access for {}ms -> {}", ttl, id);
+      this.accessed = ZonedDateTime.now().toInstant().toEpochMilli();
+      expires = accessed + ttl;
+    }
   }
 
   protected V getValue(Class<V> clazz) {
@@ -89,5 +123,10 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
     }
   }
 
+
+  private long calculateEpochTimeFromTtl(ZonedDateTime time, long ttl) {
+    return time.plus(ttl, ChronoField.MILLI_OF_DAY.getBaseUnit()).toInstant()
+        .toEpochMilli();
+  }
 
 }

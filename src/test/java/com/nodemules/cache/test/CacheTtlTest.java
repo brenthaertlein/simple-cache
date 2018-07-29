@@ -12,12 +12,12 @@ import org.junit.Test;
  * @since 7/28/18.
  */
 @Slf4j
-public class CacheTest extends AbstractTestRunner{
+public class CacheTtlTest extends AbstractTestRunner {
 
-  private static final Cache<UUID, Movie> cache = new MovieCache();
+  private static final Cache<UUID, Movie> cache = new MovieCache(2000L);
 
-  public CacheTest() {
-    log.debug("CacheTest()");
+  public CacheTtlTest() {
+    log.debug("CacheTtlTest()");
   }
 
   private static Movie generateMovie() {
@@ -49,20 +49,21 @@ public class CacheTest extends AbstractTestRunner{
   }
 
   @Test
-  public void testGet() {
-    log.debug("testGet()");
+  public void testGet_andExpired_withDefaultCacheTtl() {
+    log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
     CachedRecord<UUID, Movie> entry = new CachedMovie(movie);
     UUID id = cache.put(entry);
-    sleep(1000);
+    sleep(3000);
     Movie retrieved = cache.get(id);
+    log.info("{}", retrieved);
 
-    assert movie.getName().equals(retrieved.getName());
-    log.debug("testGet() success");
+    assert retrieved == null;
+    log.debug("testGet_andExpired() success");
   }
 
   @Test
-  public void testGet_andExpired() {
+  public void testGet_andExpired_withEntryTtl() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
     CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 1000L);
@@ -76,7 +77,7 @@ public class CacheTest extends AbstractTestRunner{
   }
 
   @Test
-  public void testGet_andRefresh() {
+  public void testGet_andRefresh_withEntryTtl() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
     CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 3000L, true);
