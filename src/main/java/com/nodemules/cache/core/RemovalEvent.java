@@ -11,7 +11,12 @@ import lombok.Getter;
 @AllArgsConstructor
 public class RemovalEvent<K, V> {
 
-  K id;
-  V value;
+  private K id;
+  private V value;
+//  private RemovalCause removalCause;
+
+  public enum RemovalCause {
+    EXPIRED, WEIGHTED, SIZE;
+  }
 
 }

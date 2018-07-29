@@ -1,6 +1,8 @@
 package com.nodemules.cache.core;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,10 +19,9 @@ public abstract class Cache<K extends Serializable, V> {
   private static final long DEFAULT_EVICTION_SLEEP_TIME = 5000L;
 
   private final Map<K, CachedRecord<K, V>> map = new ConcurrentHashMap<>();
-
+  private final List<RemovalListener<K, V>> removalListeners = new ArrayList<>();
   private final Long ttl;
   private final boolean refreshTtl;
-
   private final Long evictionSleepTime;
   private final EvictionProtocol evictionProtocol;
   private final EvictionProtocol defaultEvictionProtocol = sleepTime -> {
@@ -34,9 +35,9 @@ public abstract class Cache<K extends Serializable, V> {
         for (K key : keys) {
           ICacheable<K, V> entry = map.get(key);
           if (entry.isExpired()) {
-            log.trace("Record created at -> {}", entry.getCreatedTime());
-            log.trace("Record expired at -> {}", entry.getExpireTime());
-            remove(key);
+//            log.trace("Record created at -> {}", entry.getCreatedTime());
+//            log.trace("Record expired at -> {}", entry.getExpireTime());
+            remove(entry);
             i++;
           }
         }
@@ -53,10 +54,12 @@ public abstract class Cache<K extends Serializable, V> {
   }
 
   private Cache(Long ttl, boolean refreshTtlOnAccess, Long evictionSleepTime,
-      EvictionProtocol evictionProtocol, boolean enableEviction) {
+      EvictionProtocol evictionProtocol, boolean enableEviction,
+      List<RemovalListener<K, V>> removalListeners) {
     log.trace("Cache()");
     this.ttl = ttl;
     this.refreshTtl = refreshTtlOnAccess;
+    this.removalListeners.addAll(removalListeners);
     if (evictionSleepTime == null) {
       this.evictionSleepTime = DEFAULT_EVICTION_SLEEP_TIME;
     } else {
@@ -76,18 +79,28 @@ public abstract class Cache<K extends Serializable, V> {
     }
   }
 
-  public static Cache.CacheBuilder builder() {
-    return new Cache.CacheBuilder();
+  public static <K extends Serializable, V> Cache.CacheBuilder<K, V> builder() {
+    return Cache.CacheBuilder.builder();
   }
 
-  public void remove(K key) {
-    log.trace("Removing record -> {}", key);
-    map.remove(key);
+
+  private void remove(ICacheable<K, V> record) {
+    if (record == null) {
+      log.trace("No record was found to be removed");
+      return;
+    }
+    log.trace("Removing record -> {}", record.getId());
+    for (RemovalListener<K, V> removalListener : removalListeners) {
+      removalListener.onRemoval(new RemovalEvent<>(record.getId(), record.getValue()));
+    }
+    map.remove(record.getId());
+  }
+
+  public void invalidate(K key) {
+    remove(map.get(key));
   }
 
   public K put(CachedRecord<K, V> entry) {
-    log.trace("Adding entry to cache -> {}", entry.getId());
-    log.trace("Custom cache ttl -> {}", ttl);
     log.trace("Entry ttl -> {}", entry.getTtl());
     if (ttl != null && entry.getTtl() == null) {
       entry.setExpireTime(ttl, refreshTtl);
@@ -104,7 +117,7 @@ public abstract class Cache<K extends Serializable, V> {
         entry.access();
         if (entry.isExpired()) {
           log.trace("Removing expired entry on access -> {}", key);
-          map.remove(key);
+          remove(entry);
           return null;
         }
         V value = entry.getValue();
@@ -115,47 +128,60 @@ public abstract class Cache<K extends Serializable, V> {
     }
   }
 
-  public static class CacheBuilder {
+  public static class CacheBuilder<K extends Serializable, V> {
 
     private Long ttl;
     private Long evictionSleepTime;
     private boolean refreshTtlOnAccess;
     private EvictionProtocol evictionProtocol;
+    private boolean implicitEvicition;
     private boolean enableEviction;
+    private List<RemovalListener<K, V>> removalListeners = new ArrayList<>();
 
     CacheBuilder() {
     }
 
-    public CacheBuilder ttl(long ttl) {
+    static <K extends Serializable, V> CacheBuilder<K, V> builder() {
+      return new CacheBuilder<>();
+    }
+
+    public CacheBuilder<K, V> ttl(long ttl) {
       this.ttl = ttl;
+      this.implicitEvicition = true;
       return this;
     }
 
-    public CacheBuilder refreshTtlOnAccess(boolean refreshTtlOnAccess) {
+    public CacheBuilder<K, V> refreshTtlOnAccess(boolean refreshTtlOnAccess) {
       this.refreshTtlOnAccess = refreshTtlOnAccess;
+      this.implicitEvicition = true;
       return this;
     }
 
-    public CacheBuilder evictionProtocol(EvictionProtocol evictionProtocol) {
+    public CacheBuilder<K, V> evictionProtocol(EvictionProtocol evictionProtocol) {
       this.evictionProtocol = evictionProtocol;
-      this.enableEviction = true;
+      this.implicitEvicition = true;
       return this;
     }
 
-    public CacheBuilder evictionSleepTime(long evictionSleepTime) {
+    public CacheBuilder<K, V> evictionSleepTime(long evictionSleepTime) {
       this.evictionSleepTime = evictionSleepTime;
-      this.enableEviction = true;
+      this.implicitEvicition = true;
       return this;
     }
 
-    public CacheBuilder enableEviction(boolean enableEviction) {
+    public CacheBuilder<K, V> enableEviction(boolean enableEviction) {
       this.enableEviction = enableEviction;
       return this;
     }
 
-    public <K extends Serializable, V> Cache<K, V> build() {
+    public CacheBuilder<K, V> removalListener(RemovalListener<K, V> removalListener) {
+      this.removalListeners.add(removalListener);
+      return this;
+    }
+
+    public Cache<K, V> build() {
       return new Cache<K, V>(ttl, refreshTtlOnAccess, evictionSleepTime, evictionProtocol,
-          enableEviction) {
+          implicitEvicition || enableEviction, removalListeners) {
       };
     }
   }

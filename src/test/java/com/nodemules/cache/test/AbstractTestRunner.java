@@ -1,7 +1,5 @@
 package com.nodemules.cache.test;
 
-import com.nodemules.cache.test.movie.CacheTest;
-import com.nodemules.cache.test.movie.DefaultTtlCacheTest;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,7 +1,9 @@
-package com.nodemules.cache.test.movie;
+package com.nodemules.cache.test;
 
 import com.nodemules.cache.core.Cache;
 import com.nodemules.cache.core.CachedRecord;
+import com.nodemules.cache.test.movie.CachedMovie;
+import com.nodemules.cache.test.movie.Movie;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +31,7 @@ public class SynchronousCacheTest extends MovieCacheTest {
 
   @Before
   public void before() {
-    cache = MovieCache.builder()
+    cache = Cache.<UUID, Movie>builder()
         .evictionSleepTime(100)
         .build();
   }

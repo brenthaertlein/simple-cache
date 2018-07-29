@@ -1,8 +1,9 @@
-package com.nodemules.cache.test.movie;
+package com.nodemules.cache.test;
 
 import com.nodemules.cache.core.Cache;
 import com.nodemules.cache.core.CachedRecord;
-import com.nodemules.cache.test.AbstractTestRunner;
+import com.nodemules.cache.test.movie.CachedMovie;
+import com.nodemules.cache.test.movie.Movie;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
@@ -23,7 +24,7 @@ public class DefaultTtlCacheTest extends MovieCacheTest {
 
   @Before
   public void before() {
-    cache = MovieCache.builder()
+    cache = Cache.<UUID, Movie>builder()
         .evictionSleepTime(100)
         .ttl(200)
         .refreshTtlOnAccess(true)

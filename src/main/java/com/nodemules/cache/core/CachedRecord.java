@@ -57,18 +57,19 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
     try {
       data = new ObjectMapper().writeValueAsString(value);
     } catch (JsonProcessingException e) {
+      log.error("An error occured serializing CachedRecord.data");
     }
     if (ttl != null) {
       this.ttl = ttl;
       this.expires = created + ttl;
       this.refreshTtl = refreshTtlOnAccess;
-      log.trace("{} created -> {}, expires -> {}", id, getCreatedTime(), getExpireTime());
+//      log.trace("{} created -> {}, expires -> {}", id, getCreatedTime(), getExpireTime());
     }
   }
 
   @Override
   public ZonedDateTime getCreatedTime() {
-    log.trace("{} created -> {}", id, expires);
+//    log.trace("{} created -> {}", id, expires);
     if (expires == null) {
       return null;
     }
@@ -77,7 +78,7 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
 
   @Override
   public ZonedDateTime getExpireTime() {
-    log.trace("{} expires -> {}", id, expires);
+//    log.trace("{} expires -> {}", id, expires);
     if (expires == null) {
       return null;
     }
@@ -113,9 +114,6 @@ public abstract class CachedRecord<K extends Serializable, V> implements Seriali
   }
 
   protected V getValue(Class<V> clazz) {
-    if (isExpired()) {
-      return null;
-    }
     try {
       return mapper.readValue(data, clazz);
     } catch (IOException e) {
