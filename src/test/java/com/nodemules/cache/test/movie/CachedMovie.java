@@ -1,13 +1,15 @@
-package com.nodemules.cache.test;
+package com.nodemules.cache.test.movie;
 
 import com.nodemules.cache.core.CachedRecord;
 import com.nodemules.cache.core.ICacheable;
 import java.util.UUID;
+import lombok.ToString;
 
 /**
  * @author brent
  * @since 7/28/18.
  */
+@ToString
 public class CachedMovie extends CachedRecord<UUID, Movie> implements ICacheable<UUID, Movie> {
 
   private static final long serialVersionUID = 2483476462532194837L;

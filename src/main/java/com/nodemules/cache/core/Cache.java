@@ -24,8 +24,8 @@ public abstract class Cache<K extends Serializable, V> {
   private final Long evictionSleepTime;
   private final EvictionProtocol evictionProtocol;
   private final EvictionProtocol defaultEvictionProtocol = sleepTime -> {
-    log.trace("Running cleanup thread");
     try {
+      log.trace("Running cleanup thread with average cleanup time {}ms", sleepTime);
       while (true) {
         Thread.sleep(sleepTime);
         log.trace("Starting cleanup");
@@ -53,7 +53,7 @@ public abstract class Cache<K extends Serializable, V> {
   }
 
   private Cache(Long ttl, boolean refreshTtlOnAccess, Long evictionSleepTime,
-      EvictionProtocol evictionProtocol) {
+      EvictionProtocol evictionProtocol, boolean enableEviction) {
     log.trace("Cache()");
     this.ttl = ttl;
     this.refreshTtl = refreshTtlOnAccess;
@@ -67,18 +67,20 @@ public abstract class Cache<K extends Serializable, V> {
     } else {
       this.evictionProtocol = evictionProtocol;
     }
-    Thread t = new Thread(() -> this.evictionProtocol.evict(this.evictionSleepTime));
-    t.setPriority(Thread.MIN_PRIORITY);
-    t.setDaemon(true);
+    Thread eviction = new Thread(() -> this.evictionProtocol.evict(this.evictionSleepTime));
+    eviction.setPriority(Thread.MIN_PRIORITY);
+    eviction.setDaemon(true);
     log.trace("Starting cleanup thread");
-    t.start();
+    if (enableEviction) {
+      eviction.start();
+    }
   }
 
   public static Cache.CacheBuilder builder() {
     return new Cache.CacheBuilder();
   }
 
-  private void remove(K key) {
+  public void remove(K key) {
     log.trace("Removing record -> {}", key);
     map.remove(key);
   }
@@ -105,8 +107,9 @@ public abstract class Cache<K extends Serializable, V> {
           map.remove(key);
           return null;
         }
-        log.trace("Returning entry from cache -> {}", entry);
-        return entry.getValue();
+        V value = entry.getValue();
+        log.trace("Returning entry from cache -> {}:{}", key, value);
+        return value;
       }
       return null;
     }
@@ -118,6 +121,7 @@ public abstract class Cache<K extends Serializable, V> {
     private Long evictionSleepTime;
     private boolean refreshTtlOnAccess;
     private EvictionProtocol evictionProtocol;
+    private boolean enableEviction;
 
     CacheBuilder() {
     }
@@ -134,16 +138,24 @@ public abstract class Cache<K extends Serializable, V> {
 
     public CacheBuilder evictionProtocol(EvictionProtocol evictionProtocol) {
       this.evictionProtocol = evictionProtocol;
+      this.enableEviction = true;
       return this;
     }
 
     public CacheBuilder evictionSleepTime(long evictionSleepTime) {
       this.evictionSleepTime = evictionSleepTime;
+      this.enableEviction = true;
+      return this;
+    }
+
+    public CacheBuilder enableEviction(boolean enableEviction) {
+      this.enableEviction = enableEviction;
       return this;
     }
 
     public <K extends Serializable, V> Cache<K, V> build() {
-      return new Cache<K, V>(ttl, refreshTtlOnAccess, evictionSleepTime, evictionProtocol) {
+      return new Cache<K, V>(ttl, refreshTtlOnAccess, evictionSleepTime, evictionProtocol,
+          enableEviction) {
       };
     }
   }

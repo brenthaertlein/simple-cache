@@ -1,10 +1,11 @@
-package com.nodemules.cache.test;
+package com.nodemules.cache.test.movie;
 
 import com.nodemules.cache.core.Cache;
 import com.nodemules.cache.core.CachedRecord;
-import java.util.Collections;
+import com.nodemules.cache.test.AbstractTestRunner;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -12,23 +13,21 @@ import org.junit.Test;
  * @since 7/28/18.
  */
 @Slf4j
-public class CacheTest extends AbstractTestRunner {
+public class DefaultTtlCacheTest extends MovieCacheTest {
 
-  private static final Cache<UUID, Movie> cache = MovieCache.builder()
-      .evictionSleepTime(100)
-      .build();
+  private Cache<UUID, Movie> cache;
 
-  public CacheTest() {
-    log.debug("CacheTest()");
+  public DefaultTtlCacheTest() {
+    log.debug("DefaultTtlCacheTest()");
   }
 
-  private static Movie generateMovie() {
-    Movie movie = new Movie();
-    movie.setMovieId(UUID.randomUUID());
-    movie.setName("Jurassic Park");
-    movie.setYear("1993");
-    movie.setDirectors(Collections.singletonList("Stephen Spielberg"));
-    return movie;
+  @Before
+  public void before() {
+    cache = MovieCache.builder()
+        .evictionSleepTime(100)
+        .ttl(200)
+        .refreshTtlOnAccess(true)
+        .build();
   }
 
   @Test
@@ -42,25 +41,11 @@ public class CacheTest extends AbstractTestRunner {
   }
 
   @Test
-  public void testGet() {
-    log.debug("testGet()");
-    Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie);
-    UUID id = cache.put(entry);
-    sleep(100);
-    Movie retrieved = cache.get(id);
-
-    assert movie.getName().equals(retrieved.getName());
-    log.debug("testGet() success");
-  }
-
-  @Test
-  public void testGet_andExpired() {
+  public void testGet_andExpired_withDefaultCacheTtl() {
     log.debug("testGet_andExpired()");
-    Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 100L);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
     UUID id = cache.put(entry);
-    sleep(200);
+    AbstractTestRunner.sleep(300);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
@@ -69,24 +54,37 @@ public class CacheTest extends AbstractTestRunner {
   }
 
   @Test
-  public void testGet_andRefresh() {
+  public void testGet_andExpired_withEntryTtl() {
+    log.debug("testGet_andExpired()");
+    CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
+    UUID id = cache.put(entry);
+    AbstractTestRunner.sleep(300);
+    Movie retrieved = cache.get(id);
+    log.info("{}", retrieved);
+
+    assert retrieved == null;
+    log.debug("testGet_andExpired() success");
+  }
+
+  @Test
+  public void testGet_andRefresh_withEntryTtl() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
     CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 300L, true);
     UUID id = cache.put(entry);
-    sleep(200);
+    AbstractTestRunner.sleep(200);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
-    sleep(200);
+    AbstractTestRunner.sleep(200);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
 
-    sleep(500);
+    AbstractTestRunner.sleep(500);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);

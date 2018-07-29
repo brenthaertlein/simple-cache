@@ -1,4 +1,4 @@
-package com.nodemules.cache.test;
+package com.nodemules.cache.test.movie;
 
 import com.nodemules.cache.core.Cache;
 import java.util.UUID;
