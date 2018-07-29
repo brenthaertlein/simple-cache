@@ -9,11 +9,4 @@ import java.util.UUID;
  */
 public class MovieCache extends Cache<UUID, Movie> {
 
-  public MovieCache() {
-    super();
-  }
-
-  public MovieCache(long ttl) {
-    super(ttl);
-  }
 }

@@ -14,7 +14,10 @@ import org.junit.Test;
 @Slf4j
 public class CacheTtlTest extends AbstractTestRunner {
 
-  private static final Cache<UUID, Movie> cache = new MovieCache(2000L);
+  private static final Cache<UUID, Movie> cache = MovieCache.builder()
+      .ttl(2000)
+      .refreshTtlOnAccess(true)
+      .build();
 
   public CacheTtlTest() {
     log.debug("CacheTtlTest()");
@@ -51,8 +54,7 @@ public class CacheTtlTest extends AbstractTestRunner {
   @Test
   public void testGet_andExpired_withDefaultCacheTtl() {
     log.debug("testGet_andExpired()");
-    Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
     UUID id = cache.put(entry);
     sleep(3000);
     Movie retrieved = cache.get(id);
@@ -65,10 +67,9 @@ public class CacheTtlTest extends AbstractTestRunner {
   @Test
   public void testGet_andExpired_withEntryTtl() {
     log.debug("testGet_andExpired()");
-    Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 1000L);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
     UUID id = cache.put(entry);
-    sleep(2000);
+    sleep(3000);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 

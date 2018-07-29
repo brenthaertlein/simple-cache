@@ -18,7 +18,11 @@ public abstract class Cache<K extends Serializable, V> {
   private final Long ttl;
   private final boolean refreshTtl;
 
-  protected Cache(Long ttl, boolean refreshTtlOnAccess) {
+  protected Cache() {
+    throw new AssertionError("Use Cache.CacheBuilder()");
+  }
+
+  Cache(Long ttl, boolean refreshTtlOnAccess) {
     log.trace("Cache()");
     this.ttl = ttl;
     this.refreshTtl = refreshTtlOnAccess;
@@ -36,8 +40,7 @@ public abstract class Cache<K extends Serializable, V> {
             if (entry.isExpired()) {
               log.trace("Record created at -> {}", entry.getCreatedTime());
               log.trace("Record expired at -> {}", entry.getExpireTime());
-              log.trace("Removing record -> {}", key);
-              map.remove(key);
+              remove(key);
               i++;
             }
           }
@@ -56,12 +59,13 @@ public abstract class Cache<K extends Serializable, V> {
     t.start();
   }
 
-  protected Cache(Long ttl) {
-    this(ttl, false);
+  public static Cache.CacheBuilder builder() {
+    return new Cache.CacheBuilder();
   }
 
-  protected Cache() {
-    this(null, false);
+  private void remove(K key) {
+    log.trace("Removing record -> {}", key);
+    map.remove(key);
   }
 
   public K put(CachedRecord<K, V> entry) {
@@ -90,6 +94,30 @@ public abstract class Cache<K extends Serializable, V> {
         return entry.getValue();
       }
       return null;
+    }
+  }
+
+  public static class CacheBuilder {
+
+    private Long ttl;
+    private boolean refreshTtlOnAccess;
+
+    CacheBuilder() {
+    }
+
+    public CacheBuilder ttl(long ttl) {
+      this.ttl = ttl;
+      return this;
+    }
+
+    public CacheBuilder refreshTtlOnAccess(boolean refreshTtlOnAccess) {
+      this.refreshTtlOnAccess = refreshTtlOnAccess;
+      return this;
+    }
+
+    public <K extends Serializable, V> Cache<K, V> build() {
+      return new Cache<K, V>(ttl, refreshTtlOnAccess) {
+      };
     }
   }
 

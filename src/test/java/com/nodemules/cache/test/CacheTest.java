@@ -12,9 +12,9 @@ import org.junit.Test;
  * @since 7/28/18.
  */
 @Slf4j
-public class CacheTest extends AbstractTestRunner{
+public class CacheTest extends AbstractTestRunner {
 
-  private static final Cache<UUID, Movie> cache = new MovieCache();
+  private static final Cache<UUID, Movie> cache = MovieCache.builder().build();
 
   public CacheTest() {
     log.debug("CacheTest()");
