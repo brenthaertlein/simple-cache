@@ -12,7 +12,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  */
 @Slf4j
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = {CacheTest.class, CacheTtlTest.class})
+@SpringBootTest(classes = {CacheTest.class, DefaultTtlCacheTest.class})
 @ActiveProfiles("test")
 public abstract class AbstractTestRunner {
 

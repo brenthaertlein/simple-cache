@@ -14,45 +14,60 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class Cache<K extends Serializable, V> {
 
   private static final Object LOCK = new Object();
+  private static final long DEFAULT_EVICTION_SLEEP_TIME = 5000L;
+
   private final Map<K, CachedRecord<K, V>> map = new ConcurrentHashMap<>();
+
   private final Long ttl;
   private final boolean refreshTtl;
+
+  private final Long evictionSleepTime;
+  private final EvictionProtocol evictionProtocol;
+  private final EvictionProtocol defaultEvictionProtocol = sleepTime -> {
+    log.trace("Running cleanup thread");
+    try {
+      while (true) {
+        Thread.sleep(sleepTime);
+        log.trace("Starting cleanup");
+        Set<K> keys = map.keySet();
+        int i = 0;
+        for (K key : keys) {
+          ICacheable<K, V> entry = map.get(key);
+          if (entry.isExpired()) {
+            log.trace("Record created at -> {}", entry.getCreatedTime());
+            log.trace("Record expired at -> {}", entry.getExpireTime());
+            remove(key);
+            i++;
+          }
+        }
+        log.trace("Ending cleanup: {} records removed this cycle", i);
+        log.trace("Cleanup sleeping for {}ms", sleepTime);
+      }
+
+    } catch (InterruptedException e) {
+    }
+  };
 
   protected Cache() {
     throw new AssertionError("Use Cache.CacheBuilder()");
   }
 
-  Cache(Long ttl, boolean refreshTtlOnAccess) {
+  private Cache(Long ttl, boolean refreshTtlOnAccess, Long evictionSleepTime,
+      EvictionProtocol evictionProtocol) {
     log.trace("Cache()");
     this.ttl = ttl;
     this.refreshTtl = refreshTtlOnAccess;
-    Runnable r = () -> {
-      log.trace("Running cleanup thread");
-      final int sleepTimeMillis = 1000;
-      try {
-        while (true) {
-          Thread.sleep(sleepTimeMillis);
-          log.trace("Starting cleanup");
-          Set<K> keys = map.keySet();
-          int i = 0;
-          for (K key : keys) {
-            ICacheable<K, V> entry = map.get(key);
-            if (entry.isExpired()) {
-              log.trace("Record created at -> {}", entry.getCreatedTime());
-              log.trace("Record expired at -> {}", entry.getExpireTime());
-              remove(key);
-              i++;
-            }
-          }
-          log.trace("Ending cleanup: {} records removed this cycle", i);
-          log.trace("Cleanup sleeping for {}ms", sleepTimeMillis);
-        }
-
-      } catch (InterruptedException e) {
-      }
-    };
-
-    Thread t = new Thread(r);
+    if (evictionSleepTime == null) {
+      this.evictionSleepTime = DEFAULT_EVICTION_SLEEP_TIME;
+    } else {
+      this.evictionSleepTime = evictionSleepTime;
+    }
+    if (evictionProtocol == null) {
+      this.evictionProtocol = defaultEvictionProtocol;
+    } else {
+      this.evictionProtocol = evictionProtocol;
+    }
+    Thread t = new Thread(() -> this.evictionProtocol.evict(this.evictionSleepTime));
     t.setPriority(Thread.MIN_PRIORITY);
     t.setDaemon(true);
     log.trace("Starting cleanup thread");
@@ -100,7 +115,9 @@ public abstract class Cache<K extends Serializable, V> {
   public static class CacheBuilder {
 
     private Long ttl;
+    private Long evictionSleepTime;
     private boolean refreshTtlOnAccess;
+    private EvictionProtocol evictionProtocol;
 
     CacheBuilder() {
     }
@@ -115,8 +132,18 @@ public abstract class Cache<K extends Serializable, V> {
       return this;
     }
 
+    public CacheBuilder evictionProtocol(EvictionProtocol evictionProtocol) {
+      this.evictionProtocol = evictionProtocol;
+      return this;
+    }
+
+    public CacheBuilder evictionSleepTime(long evictionSleepTime) {
+      this.evictionSleepTime = evictionSleepTime;
+      return this;
+    }
+
     public <K extends Serializable, V> Cache<K, V> build() {
-      return new Cache<K, V>(ttl, refreshTtlOnAccess) {
+      return new Cache<K, V>(ttl, refreshTtlOnAccess, evictionSleepTime, evictionProtocol) {
       };
     }
   }

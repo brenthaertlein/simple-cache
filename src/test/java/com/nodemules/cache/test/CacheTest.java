@@ -14,7 +14,9 @@ import org.junit.Test;
 @Slf4j
 public class CacheTest extends AbstractTestRunner {
 
-  private static final Cache<UUID, Movie> cache = MovieCache.builder().build();
+  private static final Cache<UUID, Movie> cache = MovieCache.builder()
+      .evictionSleepTime(100)
+      .build();
 
   public CacheTest() {
     log.debug("CacheTest()");
@@ -45,7 +47,7 @@ public class CacheTest extends AbstractTestRunner {
     Movie movie = generateMovie();
     CachedRecord<UUID, Movie> entry = new CachedMovie(movie);
     UUID id = cache.put(entry);
-    sleep(1000);
+    sleep(100);
     Movie retrieved = cache.get(id);
 
     assert movie.getName().equals(retrieved.getName());
@@ -56,9 +58,9 @@ public class CacheTest extends AbstractTestRunner {
   public void testGet_andExpired() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 1000L);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 100L);
     UUID id = cache.put(entry);
-    sleep(2000);
+    sleep(200);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
@@ -70,21 +72,21 @@ public class CacheTest extends AbstractTestRunner {
   public void testGet_andRefresh() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 3000L, true);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 300L, true);
     UUID id = cache.put(entry);
-    sleep(2000);
+    sleep(200);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
-    sleep(2000);
+    sleep(200);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
 
-    sleep(5000);
+    sleep(500);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);

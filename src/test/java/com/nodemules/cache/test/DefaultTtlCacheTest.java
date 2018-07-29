@@ -12,15 +12,16 @@ import org.junit.Test;
  * @since 7/28/18.
  */
 @Slf4j
-public class CacheTtlTest extends AbstractTestRunner {
+public class DefaultTtlCacheTest extends AbstractTestRunner {
 
   private static final Cache<UUID, Movie> cache = MovieCache.builder()
-      .ttl(2000)
+      .evictionSleepTime(100)
+      .ttl(200)
       .refreshTtlOnAccess(true)
       .build();
 
-  public CacheTtlTest() {
-    log.debug("CacheTtlTest()");
+  public DefaultTtlCacheTest() {
+    log.debug("DefaultTtlCacheTest()");
   }
 
   private static Movie generateMovie() {
@@ -47,7 +48,7 @@ public class CacheTtlTest extends AbstractTestRunner {
     log.debug("testGet_andExpired()");
     CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
     UUID id = cache.put(entry);
-    sleep(3000);
+    sleep(300);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
@@ -60,7 +61,7 @@ public class CacheTtlTest extends AbstractTestRunner {
     log.debug("testGet_andExpired()");
     CachedRecord<UUID, Movie> entry = new CachedMovie(generateMovie());
     UUID id = cache.put(entry);
-    sleep(3000);
+    sleep(300);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
@@ -72,21 +73,21 @@ public class CacheTtlTest extends AbstractTestRunner {
   public void testGet_andRefresh_withEntryTtl() {
     log.debug("testGet_andExpired()");
     Movie movie = generateMovie();
-    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 3000L, true);
+    CachedRecord<UUID, Movie> entry = new CachedMovie(movie, 300L, true);
     UUID id = cache.put(entry);
-    sleep(2000);
+    sleep(200);
     Movie retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
-    sleep(2000);
+    sleep(200);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);
 
     assert retrieved != null;
 
-    sleep(5000);
+    sleep(500);
 
     retrieved = cache.get(id);
     log.info("{}", retrieved);
